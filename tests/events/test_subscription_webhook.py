@@ -73,7 +73,7 @@ def test_webhook_with_subscription():
 
 def test_webhook_with_apple_subscription():
     (user, pu) = _create_linked_user()
-    end_at = arrow.utcnow().shift(days=2).replace(hour=0, minute=0, second=0)
+    end_at = arrow.utcnow().shift(days=4).replace(hour=0, minute=0, second=0)
     AppleSubscription.create(
         user_id=user.id,
         receipt_data=arrow.now().date().strftime("%Y-%m-%d"),
