@@ -41,4 +41,4 @@ for batch_start in range(alias_id_start, max_alias_id, step):
     print(
         f"\rAlias {batch_start}/{max_alias_id} {updated} {hours_remaining:.2f}hrs remaining"
     )
-print("")
+print("ngu")
