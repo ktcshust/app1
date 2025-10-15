@@ -1,0 +1,38 @@
+name: Update local docs (self-hosted)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  update-local:
+    # Yêu cầu chạy trên self-hosted runner của bạn
+    runs-on: [self-hosted, linux, local]
+
+    steps:
+      - name: Notify start
+        run: echo "Runner $RUNNER_NAME will update local docs on machine"
+
+      - name: Run repoagent script on local machine
+        run: |
+          set -euo pipefail
+          # --- Thay đổi đường dẫn này về đường dẫn repo local của bạn ---
+          LOCAL_REPO="/home/tuankiet/projects/pr-agent"
+          cd "$LOCAL_REPO"
+
+          # an toàn: fetch và reset để chắc chắn local theo origin/main
+          git fetch origin main
+          git reset --hard origin/main
+
+          # cho phép chạy script
+          chmod +x ./generate_code_doc.sh || true
+
+          # chạy script (script phải cập nhật folder app1_complete_fixed)
+          ./generate_code_doc.sh
+
+          # Nếu script commit output trở lại repo, thêm [skip ci] để tránh loop
+          if git status --porcelain | grep .; then
+            git add -A
+            git commit -m "chore(docs): update generated docs [skip ci]" || true
+            git push origin main || true
+          fi
