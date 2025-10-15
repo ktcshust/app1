@@ -1,38 +1,63 @@
 name: Update local docs (self-hosted)
 
+# Trigger: push lên master, hoặc trigger thủ công từ UI
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
+    paths-ignore:
+      - 'app1_complete_fixed/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
 
 jobs:
-  update-local:
-    # Yêu cầu chạy trên self-hosted runner của bạn
-    runs-on: [self-hosted, linux, local]
+  update-local-docs:
+    # chạy trên self-hosted runner (label linux/x64 optional)
+    runs-on: [self-hosted, linux]
 
     steps:
-      - name: Notify start
-        run: echo "Runner $RUNNER_NAME will update local docs on machine"
-
-      - name: Run repoagent script on local machine
+      - name: Print runner info
         run: |
-          set -euo pipefail
-          # --- Thay đổi đường dẫn này về đường dẫn repo local của bạn ---
-          LOCAL_REPO="/home/tuankiet/projects/pr-agent"
+          echo "RUNNER_NAME=${RUNNER_NAME:-unknown}"
+          echo "GITHUB_RUN_ID=${GITHUB_RUN_ID}"
+          echo "Runner user: $(id -un)"
+          echo "Working dir:"
+          pwd
+          ls -la
+
+      - name: Debug LOCAL_REPO listing
+        run: |
+          LOCAL_REPO="/mnt/nvme1/home/kiet/pr-agent"   # <-- đảm bảo đúng đường dẫn local của bạn
+          echo "Listing $LOCAL_REPO"
+          ls -la "$LOCAL_REPO" || true
+          echo "Current branch there:"
+          git -C "$LOCAL_REPO" branch --show-current || true
+
+      - name: Run generate_code_doc.sh (safe)
+        run: |
+          set -euxo pipefail
+          LOCAL_REPO="/mnt/nvme1/home/kiet/pr-agent"
           cd "$LOCAL_REPO"
 
-          # an toàn: fetch và reset để chắc chắn local theo origin/main
-          git fetch origin main
-          git reset --hard origin/main
+          # Pull latest code from origin/master (tùy chọn)
+          git fetch origin master
+          git reset --hard origin/master || true
 
-          # cho phép chạy script
+          # Ensure script executable
           chmod +x ./generate_code_doc.sh || true
 
-          # chạy script (script phải cập nhật folder app1_complete_fixed)
-          ./generate_code_doc.sh
+          # Run the script and print first 200 lines of its output
+          ./generate_code_doc.sh 2>&1 | sed -n '1,200p' || true
 
-          # Nếu script commit output trở lại repo, thêm [skip ci] để tránh loop
-          if git status --porcelain | grep .; then
+          echo "After run: listing app1_complete_fixed (first 200 lines)"
+          ls -la app1_complete_fixed || true
+          find app1_complete_fixed -maxdepth 2 -type f | sed -n '1,200p' || true
+
+      - name: Optional: commit outputs back (disabled by default)
+        if: false
+        run: |
+          cd /mnt/nvme1/home/kiet/pr-agent
+          if git status --porcelain | grep -q .; then
             git add -A
             git commit -m "chore(docs): update generated docs [skip ci]" || true
-            git push origin main || true
+            git push origin master || true
           fi
